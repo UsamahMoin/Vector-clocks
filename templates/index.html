@@ -17,44 +17,42 @@
 
 <div class="layout">
 
-  <!-- Sidebar -->
+  <!-- ── Left sidebar ── -->
   <aside class="sidebar">
+
     <div>
       <h2>Send Message</h2>
-    </div>
-
-    <div class="controls">
-      <div class="field">
-        <label>Sender Process</label>
-        <select id="sender">
-          <option value="1">P1 — Process 1</option>
-          <option value="2">P2 — Process 2</option>
-          <option value="3">P3 — Process 3</option>
-        </select>
+      <div class="controls">
+        <div class="field">
+          <label>Sender Process</label>
+          <select id="sender">
+            <option value="1">P1 — Process 1</option>
+            <option value="2">P2 — Process 2</option>
+            <option value="3">P3 — Process 3</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Receiver Process</label>
+          <select id="receiver">
+            <option value="1">P1 — Process 1</option>
+            <option value="2" selected>P2 — Process 2</option>
+            <option value="3">P3 — Process 3</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="send-btn">Send ↵</button>
+        <button class="btn btn-secondary" id="reset-btn">Reset</button>
       </div>
-
-      <div class="field">
-        <label>Receiver Process</label>
-        <select id="receiver">
-          <option value="1">P1 — Process 1</option>
-          <option value="2" selected>P2 — Process 2</option>
-          <option value="3">P3 — Process 3</option>
-        </select>
-      </div>
-
-      <button class="btn btn-primary" id="send-btn">Send ↵</button>
-      <button class="btn btn-secondary" id="reset-btn">Reset Simulation</button>
     </div>
 
     <div>
-      <h2 style="margin-bottom:0.75rem">Current Clocks</h2>
+      <h2>Current Clocks</h2>
       <div class="clock-cards">
         <div class="clock-card p1">
           <div class="title">P1</div>
           <div class="clock-vec">
-            <div class="clock-cell" title="P1 counter">0</div>
-            <div class="clock-cell" title="P2 counter">0</div>
-            <div class="clock-cell" title="P3 counter">0</div>
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
           </div>
         </div>
         <div class="clock-card p2">
@@ -76,48 +74,78 @@
       </div>
     </div>
 
-    <div style="font-size:0.72rem;color:var(--muted);line-height:1.6">
-      <strong style="color:var(--text);display:block;margin-bottom:0.3rem">Rules</strong>
+    <div class="hint-text">
+      <strong>Rules</strong>
       <b>Send:</b> increment own counter<br>
-      <b>Receive:</b> component-wise max, then increment own
+      <b>Receive:</b> component-wise max, then increment own<br><br>
+      <strong>Interact</strong>
+      Click any event dot to explore its causal history.
     </div>
+
   </aside>
 
-  <!-- Space-time diagram -->
+  <!-- ── Centre: diagram ── -->
   <main class="canvas-area">
+
     <div class="canvas-header">
-      <div class="dot"></div>
+      <div class="pulse-dot"></div>
       Space-time diagram — time flows downward
     </div>
+
+    <!-- Causality info bar (hidden until an event is clicked) -->
+    <div id="info-panel" class="hidden">
+      <span class="ip-proc"></span>
+      <span class="ip-clock"></span>
+      <span class="ip-ancs"></span>
+      <span class="ip-conc"></span>
+      <button class="ip-close" title="Clear selection">×</button>
+    </div>
+
     <div id="diagram"></div>
+
   </main>
 
-  <!-- Legend + log -->
+  <!-- ── Right: legend + log ── -->
   <aside class="legend">
+
     <div>
-      <h2>Legend</h2>
+      <h2>Processes</h2>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background:#6c63ff"></div>Process 1</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6584"></div>Process 2</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#43e97b"></div>Process 3</div>
+      </div>
     </div>
-    <div class="legend-items">
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#6c63ff"></div> Process 1
+
+    <div>
+      <h2>Event Types</h2>
+      <div class="legend-items">
+        <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>Send</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div>Receive</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a78bfa"></div>Internal</div>
+        <div class="legend-item"><div class="legend-arrow"></div>Message</div>
       </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#ff6584"></div> Process 2
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#43e97b"></div> Process 3
-      </div>
-      <div class="legend-item" style="margin-top:0.5rem">
-        <div class="legend-dot" style="background:#fbbf24"></div> Send event
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#38bdf8"></div> Receive event
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#a78bfa"></div> Internal event
-      </div>
-      <div class="legend-item">
-        <div class="legend-arrow"></div> Message
+    </div>
+
+    <div>
+      <h2>Causality (click)</h2>
+      <div class="legend-items">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#fff;box-shadow:0 0 6px #fff"></div>
+          Selected
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa"></div>
+          Ancestor (→)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#f97316;box-shadow:0 0 6px #f97316"></div>
+          Concurrent (∥)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#f97316;border:2px solid #0f1117;width:9px;height:9px"></div>
+          Has concurrent peers
+        </div>
       </div>
     </div>
 
@@ -125,6 +153,7 @@
       <h2>Event Log</h2>
       <div id="event-log"></div>
     </div>
+
   </aside>
 
 </div>

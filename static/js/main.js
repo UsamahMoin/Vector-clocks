@@ -1,25 +1,50 @@
-/* ── Vector Clock Visualizer ── */
 const socket = io();
 
 const COLORS = {
-  proc: ['#6c63ff', '#ff6584', '#43e97b'],
-  send: '#fbbf24',
-  recv: '#38bdf8',
-  internal: '#a78bfa',
-  bg: '#0f1117',
-  grid: '#2a2d3e',
-  text: '#e2e8f0',
-  muted: '#718096',
+  proc:       ['#6c63ff', '#ff6584', '#43e97b'],
+  send:       '#fbbf24',
+  recv:       '#38bdf8',
+  internal:   '#a78bfa',
+  bg:         '#0f1117',
+  text:       '#e2e8f0',
+  muted:      '#718096',
+  ancestor:   '#a78bfa',
+  concurrent: '#f97316',
+  selected:   '#ffffff',
 };
 
-const SVG_W = 620;
-const COL_X = [120, 310, 500];
-const TOP_PAD = 60;
-const ROW_H = 70;
-const DOT_R = 9;
+const SVG_W  = 620;
+const COL_X  = [120, 310, 500];
+const TOP_PAD = 72;
+const ROW_H  = 80;
+const DOT_R  = 10;
 
-let events = [];
-let svgHeight = TOP_PAD + ROW_H;
+let events    = [];
+let eventEls  = new Map();   // id → { group, glowRing, concBadge }
+let arrowEls  = new Map();   // recv-event-id → path element
+let selectedId = null;
+let svgHeight  = TOP_PAD + ROW_H;
+
+// ── Vector-clock relations ──────────────────────────────────────────────────
+
+function happensBefore(a, b) {
+  return a.every((v, i) => v <= b[i]) && a.some((v, i) => v < b[i]);
+}
+
+function ancestors(id) {
+  const tgt = events.find(e => e.id === id);
+  return new Set(events.filter(e => e.id !== id && happensBefore(e.clock, tgt.clock)).map(e => e.id));
+}
+
+function concurrent(id) {
+  const tgt = events.find(e => e.id === id);
+  return new Set(events.filter(e => {
+    if (e.id === id) return false;
+    return !happensBefore(e.clock, tgt.clock) && !happensBefore(tgt.clock, e.clock);
+  }).map(e => e.id));
+}
+
+// ── SVG helpers ─────────────────────────────────────────────────────────────
 
 function svgEl(tag, attrs = {}) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -27,185 +52,237 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
+function buildDefs() {
+  const defs = svgEl('defs');
+
+  // Arrow marker
+  const marker = svgEl('marker', { id: 'arrow-msg', markerWidth: 8, markerHeight: 8, refX: 6, refY: 3, orient: 'auto' });
+  marker.appendChild(svgEl('path', { d: 'M0,0 L0,6 L8,3 z', fill: COLORS.send }));
+  defs.appendChild(marker);
+
+  // Glow filters
+  [['glow-white',  COLORS.selected],
+   ['glow-purple', COLORS.ancestor],
+   ['glow-orange', COLORS.concurrent]].forEach(([id, color]) => {
+    const f = svgEl('filter', { id, x: '-60%', y: '-60%', width: '220%', height: '220%' });
+    f.innerHTML = `
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="blur"/>
+      <feFlood flood-color="${color}" flood-opacity="1" result="clr"/>
+      <feComposite in="clr" in2="blur" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>`;
+    defs.appendChild(f);
+  });
+
+  return defs;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
 function initSVG() {
+  events = []; eventEls.clear(); arrowEls.clear();
+  selectedId = null; svgHeight = TOP_PAD + ROW_H;
+
   const container = document.getElementById('diagram');
   container.innerHTML = '';
-  const svg = svgEl('svg', {
-    id: 'vc-svg',
-    viewBox: `0 0 ${SVG_W} ${svgHeight}`,
-    xmlns: 'http://www.w3.org/2000/svg',
+
+  const svg = svgEl('svg', { id: 'vc-svg', viewBox: `0 0 ${SVG_W} ${svgHeight}`, xmlns: 'http://www.w3.org/2000/svg' });
+  svg.appendChild(buildDefs());
+  svg.appendChild(svgEl('rect', { id: 'bg-rect', width: SVG_W, height: svgHeight, fill: COLORS.bg, style: 'cursor:default' }));
+
+  // Process column headers + timeline lines
+  ['P1','P2','P3'].forEach((lbl, i) => {
+    const x = COL_X[i], c = COLORS.proc[i];
+    const g = svgEl('g');
+    g.appendChild(svgEl('circle', { cx: x, cy: 34, r: 22, fill: c, opacity: 0.1 }));
+    g.appendChild(svgEl('circle', { cx: x, cy: 34, r: 15, fill: c, opacity: 0.18 }));
+    const t = svgEl('text', { x, y: 39, 'text-anchor': 'middle', fill: c, 'font-size': 13, 'font-weight': 700, 'font-family': 'Inter, system-ui, sans-serif' });
+    t.textContent = lbl; g.appendChild(t); svg.appendChild(g);
+    svg.appendChild(svgEl('line', { id: `proc-line-${i}`, x1: x, y1: TOP_PAD, x2: x, y2: svgHeight - 20, stroke: c, 'stroke-width': 2, 'stroke-opacity': 0.3 }));
   });
 
-  // Arrow marker defs
-  const defs = svgEl('defs');
-  ['send', 'recv'].forEach(kind => {
-    const color = COLORS[kind];
-    const marker = svgEl('marker', {
-      id: `arrow-${kind}`,
-      markerWidth: 8, markerHeight: 8,
-      refX: 6, refY: 3,
-      orient: 'auto',
-    });
-    const path = svgEl('path', {
-      d: 'M0,0 L0,6 L8,3 z',
-      fill: color,
-    });
-    marker.appendChild(path);
-    defs.appendChild(marker);
-  });
-  svg.appendChild(defs);
-
-  // Background
-  svg.appendChild(svgEl('rect', { width: SVG_W, height: svgHeight, fill: COLORS.bg }));
-
-  // Process columns
-  ['P1', 'P2', 'P3'].forEach((label, i) => {
-    const x = COL_X[i];
-    const color = COLORS.proc[i];
-
-    // Column header circle
-    const headerG = svgEl('g');
-    headerG.appendChild(svgEl('circle', { cx: x, cy: 28, r: 18, fill: color, opacity: 0.15 }));
-    headerG.appendChild(svgEl('circle', { cx: x, cy: 28, r: 14, fill: color, opacity: 0.25 }));
-    const labelEl = svgEl('text', {
-      x, y: 33, 'text-anchor': 'middle', fill: color,
-      'font-size': 13, 'font-weight': 700, 'font-family': 'Inter, system-ui, sans-serif',
-    });
-    labelEl.textContent = label;
-    headerG.appendChild(labelEl);
-    svg.appendChild(headerG);
-
-    // Vertical line (will be updated on resize)
-    svg.appendChild(svgEl('line', {
-      id: `proc-line-${i}`,
-      x1: x, y1: TOP_PAD, x2: x, y2: svgHeight - 20,
-      stroke: color, 'stroke-width': 2, 'stroke-opacity': 0.4,
-    }));
-  });
-
-  svg.appendChild(svgEl('g', { id: 'events-layer' }));
   svg.appendChild(svgEl('g', { id: 'arrows-layer' }));
+  svg.appendChild(svgEl('g', { id: 'events-layer' }));
 
+  svg.addEventListener('click', e => { if (e.target === svg || e.target.id === 'bg-rect') clearHighlight(); });
   container.appendChild(svg);
+  clearInfo();
 }
 
-function getEventY(index) {
-  return TOP_PAD + (index + 1) * ROW_H;
-}
-
-function procEventIndex(proc) {
-  return events.filter(e => e.proc === proc);
-}
+// ── Append events ─────────────────────────────────────────────────────────
 
 function appendEvents(newEvs) {
-  const svg = document.getElementById('vc-svg');
-  const evLayer = document.getElementById('events-layer');
-  const arrowLayer = document.getElementById('arrows-layer');
-
-  // Track per-proc counts before this batch
-  const procCount = [0, 1, 2].map(p => events.filter(e => e.proc === p && !newEvs.includes(e)).length);
+  const svg      = document.getElementById('vc-svg');
+  const evLayer  = document.getElementById('events-layer');
+  const arrLayer = document.getElementById('arrows-layer');
 
   newEvs.forEach(ev => {
     events.push(ev);
-    const idx = events.filter(e => e.proc === ev.proc).length - 1;
-    const y = TOP_PAD + (idx + 1) * ROW_H;
-    const x = COL_X[ev.proc];
-    const color = ev.kind === 'send' ? COLORS.send : ev.kind === 'recv' ? COLORS.recv : COLORS.internal;
-    const procColor = COLORS.proc[ev.proc];
+    const idx   = events.filter(e => e.proc === ev.proc).length - 1;
+    const y     = TOP_PAD + (idx + 1) * ROW_H;
+    const x     = COL_X[ev.proc];
+    const kClr  = ev.kind === 'send' ? COLORS.send : ev.kind === 'recv' ? COLORS.recv : COLORS.internal;
+    const pClr  = COLORS.proc[ev.proc];
 
-    // Dot group
-    const g = svgEl('g', { class: 'event-group', opacity: 0 });
-    g.appendChild(svgEl('circle', { cx: x, cy: y, r: DOT_R + 4, fill: procColor, opacity: 0.15 }));
-    g.appendChild(svgEl('circle', { cx: x, cy: y, r: DOT_R, fill: color, stroke: procColor, 'stroke-width': 2 }));
+    const g = svgEl('g', { 'data-id': ev.id, opacity: 0, style: 'cursor:pointer' });
 
-    // Kind icon (text)
-    const icon = svgEl('text', {
-      x, y: y + 4, 'text-anchor': 'middle',
-      fill: '#fff', 'font-size': 9, 'font-weight': 700,
-      'font-family': 'Inter, system-ui, sans-serif',
-    });
-    icon.textContent = ev.kind === 'send' ? '↑' : ev.kind === 'recv' ? '↓' : '•';
-    g.appendChild(icon);
+    // Glow ring — hidden until highlight
+    const glowRing = svgEl('circle', { cx: x, cy: y, r: DOT_R + 10, fill: 'none', stroke: 'transparent', 'stroke-width': 3, opacity: 0 });
+    g.appendChild(glowRing);
 
-    // Vector clock label
-    const vcStr = `[${ev.clock.join(',')}]`;
-    const labelX = ev.proc === 1 ? x + 18 : x - 18;
-    const anchor = ev.proc === 1 ? 'start' : 'end';
-    const lbl = svgEl('text', {
-      x: labelX, y: y + 4, 'text-anchor': anchor,
-      fill: COLORS.text, 'font-size': 10,
-      'font-family': '"JetBrains Mono", monospace',
-    });
-    lbl.textContent = vcStr;
+    // Concurrency badge (small orange dot, top-right of event)
+    const concBadge = svgEl('circle', { cx: x + DOT_R - 1, cy: y - DOT_R + 1, r: 4.5, fill: COLORS.concurrent, opacity: 0, 'stroke': COLORS.bg, 'stroke-width': 1.5 });
+    g.appendChild(concBadge);
+
+    // Main dot
+    g.appendChild(svgEl('circle', { cx: x, cy: y, r: DOT_R, fill: kClr, stroke: pClr, 'stroke-width': 2 }));
+
+    // Kind glyph
+    const glyph = svgEl('text', { x, y: y + 4, 'text-anchor': 'middle', fill: '#fff', 'font-size': 9, 'font-weight': 700, 'font-family': 'Inter,sans-serif', style: 'pointer-events:none' });
+    glyph.textContent = ev.kind === 'send' ? '↑' : ev.kind === 'recv' ? '↓' : '·';
+    g.appendChild(glyph);
+
+    // VC label — left of P2/P3, right of P1
+    const lx     = ev.proc === 0 ? x + 16 : x - 16;
+    const anchor = ev.proc === 0 ? 'start'  : 'end';
+    const lbl = svgEl('text', { x: lx, y: y + 4, 'text-anchor': anchor, fill: COLORS.text, 'font-size': 10, 'font-family': '"JetBrains Mono",monospace', style: 'pointer-events:none' });
+    lbl.textContent = `[${ev.clock.join(',')}]`;
     g.appendChild(lbl);
 
+    g.addEventListener('click', e => { e.stopPropagation(); selectedId === ev.id ? clearHighlight() : applyHighlight(ev.id); });
     evLayer.appendChild(g);
+    eventEls.set(ev.id, { group: g, glowRing, concBadge });
 
-    // Animate in
-    requestAnimationFrame(() => {
-      g.style.transition = 'opacity 0.4s ease';
-      g.setAttribute('opacity', 1);
-    });
+    requestAnimationFrame(() => { g.style.transition = 'opacity 0.35s ease'; g.setAttribute('opacity', 1); });
 
-    // Arrow for recv events
-    if (ev.kind === 'recv' && ev.linked_to !== null && ev.linked_to !== undefined) {
-      const sendEv = events.find(e => e.id === ev.linked_to);
-      if (sendEv) {
-        const sendIdx = events.filter(e => e.proc === sendEv.proc).length - 1;
-        const sy = TOP_PAD + (sendIdx + 1) * ROW_H;
-        const sx = COL_X[sendEv.proc];
-        drawArrow(arrowLayer, sx, sy, x, y);
+    // Bezier message arrow for recv events
+    if (ev.kind === 'recv' && ev.linked_to != null) {
+      const src = events.find(e => e.id === ev.linked_to);
+      if (src) {
+        const si = events.filter(e => e.proc === src.proc).length - 1;
+        const sy = TOP_PAD + (si + 1) * ROW_H;
+        arrowEls.set(ev.id, drawArrow(arrLayer, COL_X[src.proc], sy, x, y));
       }
     }
   });
 
-  // Expand SVG height if needed
-  const maxEvents = Math.max(...[0,1,2].map(p => events.filter(e => e.proc === p).length));
-  const needed = TOP_PAD + (maxEvents + 1.5) * ROW_H;
+  // Grow SVG canvas
+  const maxRows = Math.max(...[0,1,2].map(p => events.filter(e => e.proc === p).length));
+  const needed  = TOP_PAD + (maxRows + 1.5) * ROW_H;
   if (needed > svgHeight) {
     svgHeight = needed;
     svg.setAttribute('viewBox', `0 0 ${SVG_W} ${svgHeight}`);
-    svg.querySelector('rect').setAttribute('height', svgHeight);
-    [0,1,2].forEach(i => {
-      const line = document.getElementById(`proc-line-${i}`);
-      if (line) line.setAttribute('y2', svgHeight - 20);
-    });
+    document.getElementById('bg-rect').setAttribute('height', svgHeight);
+    [0,1,2].forEach(i => { const l = document.getElementById(`proc-line-${i}`); if (l) l.setAttribute('y2', svgHeight - 20); });
   }
+
+  refreshConcurrencyBadges();
+  if (selectedId != null) applyHighlight(selectedId);  // re-apply if active
 }
+
+// ── Bezier arrow ──────────────────────────────────────────────────────────
 
 function drawArrow(layer, x1, y1, x2, y2) {
-  const kind = x2 > x1 ? 'send' : 'recv';
-  // Adjust end point so arrow doesn't overlap dot
-  const dx = x2 - x1, dy = y2 - y1;
+  const cpY = (y1 + y2) / 2;
+  const dx  = x2 - x1, dy = y2 - y1;
   const len = Math.sqrt(dx*dx + dy*dy);
-  const nx = dx/len, ny = dy/len;
-  const ex = x2 - nx * (DOT_R + 5);
-  const ey = y2 - ny * (DOT_R + 5);
+  // Pull endpoint back so arrowhead tip sits on dot edge
+  const ex  = x2 - (dx/len) * (DOT_R + 6);
+  const ey  = y2 - (dy/len) * (DOT_R + 6);
+  const d   = `M ${x1} ${y1} C ${x1} ${cpY} ${x2} ${cpY} ${ex} ${ey}`;
 
-  const line = svgEl('line', {
-    x1, y1, x2: ex, y2: ey,
-    stroke: COLORS.send,
-    'stroke-width': 1.5,
-    'stroke-dasharray': '6,3',
-    'marker-end': `url(#arrow-send)`,
-    opacity: 0,
-  });
-  layer.appendChild(line);
-  requestAnimationFrame(() => {
-    line.style.transition = 'opacity 0.5s ease 0.2s';
-    line.setAttribute('opacity', 0.85);
+  const path = svgEl('path', { d, fill: 'none', stroke: COLORS.send, 'stroke-width': 1.8, 'stroke-dasharray': '6,3', 'marker-end': 'url(#arrow-msg)', opacity: 0 });
+  layer.appendChild(path);
+  requestAnimationFrame(() => { path.style.transition = 'opacity 0.5s ease 0.2s'; path.setAttribute('opacity', 0.9); });
+  return path;
+}
+
+// ── Concurrency badges ────────────────────────────────────────────────────
+
+function refreshConcurrencyBadges() {
+  events.forEach(ev => {
+    const c   = concurrent(ev.id);
+    const els = eventEls.get(ev.id);
+    if (els) els.concBadge.setAttribute('opacity', c.size > 0 ? 1 : 0);
   });
 }
+
+// ── Highlighting ──────────────────────────────────────────────────────────
+
+function applyHighlight(id) {
+  selectedId = id;
+  const ancs = ancestors(id);
+  const conc = concurrent(id);
+
+  eventEls.forEach(({ group, glowRing }, evId) => {
+    if (evId === id) {
+      group.setAttribute('opacity', 1);
+      group.setAttribute('filter', 'url(#glow-white)');
+      glowRing.setAttribute('stroke', COLORS.selected);
+      glowRing.setAttribute('opacity', 0.55);
+    } else if (ancs.has(evId)) {
+      group.setAttribute('opacity', 1);
+      group.setAttribute('filter', 'url(#glow-purple)');
+      glowRing.setAttribute('stroke', COLORS.ancestor);
+      glowRing.setAttribute('opacity', 0.45);
+    } else if (conc.has(evId)) {
+      group.setAttribute('opacity', 1);
+      group.setAttribute('filter', 'url(#glow-orange)');
+      glowRing.setAttribute('stroke', COLORS.concurrent);
+      glowRing.setAttribute('opacity', 0.45);
+    } else {
+      group.setAttribute('opacity', 0.12);
+      group.removeAttribute('filter');
+      glowRing.setAttribute('opacity', 0);
+    }
+  });
+
+  arrowEls.forEach((path, recvId) => {
+    const recv = events.find(e => e.id === recvId);
+    const send = recv ? events.find(e => e.id === recv.linked_to) : null;
+    const keep = recvId === id || send?.id === id || ancs.has(recvId) || (send && ancs.has(send.id));
+    path.setAttribute('opacity', keep ? 0.9 : 0.06);
+  });
+
+  showInfo(id, ancs.size, conc.size);
+}
+
+function clearHighlight() {
+  selectedId = null;
+  eventEls.forEach(({ group, glowRing }) => {
+    group.setAttribute('opacity', 1);
+    group.removeAttribute('filter');
+    glowRing.setAttribute('opacity', 0);
+  });
+  arrowEls.forEach(p => p.setAttribute('opacity', 0.9));
+  clearInfo();
+}
+
+// ── Info panel ────────────────────────────────────────────────────────────
+
+function showInfo(id, ancCount, concCount) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  const kinds = { send: 'Send', recv: 'Receive', internal: 'Internal' };
+  document.querySelector('#info-panel .ip-proc').textContent  = `P${ev.proc + 1} · ${kinds[ev.kind]}`;
+  document.querySelector('#info-panel .ip-clock').textContent = `[${ev.clock.join(', ')}]`;
+  document.querySelector('#info-panel .ip-ancs').textContent  = `${ancCount} causal ancestor${ancCount !== 1 ? 's' : ''}`;
+  document.querySelector('#info-panel .ip-conc').textContent  = `${concCount} concurrent event${concCount !== 1 ? 's' : ''}`;
+  document.getElementById('info-panel').classList.remove('hidden');
+}
+
+function clearInfo() {
+  document.getElementById('info-panel').classList.add('hidden');
+}
+
+// ── Clock cards ───────────────────────────────────────────────────────────
 
 function updateClockCards(clocks) {
   [[0,'p1'],[1,'p2'],[2,'p3']].forEach(([i, cls]) => {
-    const card = document.querySelector(`.clock-card.${cls}`);
-    if (!card) return;
-    const cells = card.querySelectorAll('.clock-cell');
+    const cells = document.querySelectorAll(`.clock-card.${cls} .clock-cell`);
     clocks[i].forEach((val, j) => {
-      const oldVal = parseInt(cells[j].textContent);
+      const old = parseInt(cells[j].textContent);
       cells[j].textContent = val;
-      if (val !== oldVal) {
+      if (val !== old) {
         cells[j].classList.remove('highlight');
         void cells[j].offsetWidth;
         cells[j].classList.add('highlight');
@@ -216,17 +293,16 @@ function updateClockCards(clocks) {
 }
 
 function addLogEntry(ev) {
-  const log = document.getElementById('event-log');
+  const log   = document.getElementById('event-log');
   const entry = document.createElement('div');
   entry.className = `log-entry ${ev.kind}`;
-  const proc = `P${ev.proc + 1}`;
-  const vc = `[${ev.clock.join(',')}]`;
-  entry.textContent = `${proc} ${ev.kind.toUpperCase()} → ${vc}`;
+  entry.textContent = `P${ev.proc + 1} ${ev.kind.toUpperCase()} → [${ev.clock.join(',')}]`;
   log.appendChild(entry);
   log.scrollTop = log.scrollHeight;
 }
 
-// Socket events
+// ── Socket ────────────────────────────────────────────────────────────────
+
 socket.on('new_events', ({ events: newEvs, clocks }) => {
   appendEvents(newEvs);
   updateClockCards(clocks);
@@ -234,28 +310,24 @@ socket.on('new_events', ({ events: newEvs, clocks }) => {
 });
 
 socket.on('reset', () => {
-  events = [];
-  svgHeight = TOP_PAD + ROW_H;
   initSVG();
   document.querySelectorAll('.clock-cell').forEach(c => c.textContent = '0');
   document.getElementById('event-log').innerHTML = '';
 });
 
-// UI controls
+// ── Controls ──────────────────────────────────────────────────────────────
+
 document.getElementById('send-btn').addEventListener('click', () => {
-  const s = parseInt(document.getElementById('sender').value);
-  const r = parseInt(document.getElementById('receiver').value);
-  socket.emit('send_message', { sender: s, receiver: r });
+  socket.emit('send_message', {
+    sender:   parseInt(document.getElementById('sender').value),
+    receiver: parseInt(document.getElementById('receiver').value),
+  });
 });
 
-document.getElementById('reset-btn').addEventListener('click', () => {
-  fetch('/api/reset', { method: 'POST' });
-});
+document.getElementById('reset-btn').addEventListener('click', () => fetch('/api/reset', { method: 'POST' }));
 
-// Keyboard shortcut: Enter to send
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.repeat) document.getElementById('send-btn').click();
-});
+document.getElementById('info-panel').querySelector('.ip-close').addEventListener('click', clearHighlight);
 
-// Init
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.repeat) document.getElementById('send-btn').click(); });
+
 initSVG();
