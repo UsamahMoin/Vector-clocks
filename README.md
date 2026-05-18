@@ -1,36 +1,33 @@
-# Vector Clocks Project
+# Vector Clocks — Interactive Visualizer
 
-This project implements a distributed system simulation using vector clocks to maintain the partial ordering of events in a distributed system.
+A distributed systems simulator that visualizes **vector clocks** through a live space-time diagram. Watch causal relationships form in real time as you route messages between three processes.
 
-## Project Structure
+## Features
 
-The project consists of the following files:
-- `System1.py`
-- `System2.py`
-- `System3.py`
-- `Clock.py`
+- **Live space-time diagram** — events plotted as dots on process timelines, messages as arrows
+- **Animated vector clock cards** — each component highlights when it changes
+- **Event log** — colour-coded per event type (send / receive / internal)
+- **WebSocket-driven** — no page refreshes; state updates instantly via Socket.IO
 
-### System1.py
+## Quick Start
 
-This file contains the implementation for the first system node in the distributed system. It initializes the vector clock for the node, handles communication with other nodes, and processes incoming messages. The node can send and receive messages, updating its vector clock accordingly to maintain the correct order of events.
+```bash
+pip install -r requirements.txt
+python app.py
+```
 
-### System2.py
+Then open **http://localhost:5000** in your browser.
 
-This file contains the implementation for the second system node in the distributed system. Similar to `System1.py`, it initializes the vector clock, handles communication, and processes messages. The node interacts with other nodes, updating its vector clock to reflect the partial ordering of events in the system.
+## How It Works
 
-### System3.py
+Each process maintains a vector `[c1, c2, c3]`:
 
-This file contains the implementation for the third system node in the distributed system. It follows the same structure as `System1.py` and `System2.py`, initializing the vector clock, handling communication, and processing messages. The node ensures that its vector clock accurately reflects the ordering of events in the distributed system.
+| Event | Rule |
+|-------|------|
+| **Send** | Increment own counter, attach clock to message |
+| **Receive** | Component-wise max with received clock, then increment own |
+| **Internal** | Increment own counter only |
 
-### Clock.py
+## Original CLI Version
 
-This file contains the implementation of the vector clock mechanism used by the system nodes. It provides the necessary functions for initializing, updating, and comparing vector clocks. The vector clock helps maintain the partial ordering of events in the distributed system by capturing the causal relationships between events.
-
-## How to Run
-
-1. Ensure you have Python installed on your system.
-2. Run each system node in separate terminal windows or tabs.
-   ```bash
-   python System1.py
-   python System2.py
-   python System3.py
+The original socket-based multi-process implementation is preserved in `Clock.py`, `System1.py`, `System2.py`, and `System3.py`. Run each system in a separate terminal, then run `Clock.py` to coordinate messages.
