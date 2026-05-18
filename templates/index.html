@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Clocks — Interactive Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Vector Clocks</h1>
+  <span class="badge">Distributed Systems Visualizer</span>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <h2>Send Message</h2>
+    </div>
+
+    <div class="controls">
+      <div class="field">
+        <label>Sender Process</label>
+        <select id="sender">
+          <option value="1">P1 — Process 1</option>
+          <option value="2">P2 — Process 2</option>
+          <option value="3">P3 — Process 3</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Receiver Process</label>
+        <select id="receiver">
+          <option value="1">P1 — Process 1</option>
+          <option value="2" selected>P2 — Process 2</option>
+          <option value="3">P3 — Process 3</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary" id="send-btn">Send ↵</button>
+      <button class="btn btn-secondary" id="reset-btn">Reset Simulation</button>
+    </div>
+
+    <div>
+      <h2 style="margin-bottom:0.75rem">Current Clocks</h2>
+      <div class="clock-cards">
+        <div class="clock-card p1">
+          <div class="title">P1</div>
+          <div class="clock-vec">
+            <div class="clock-cell" title="P1 counter">0</div>
+            <div class="clock-cell" title="P2 counter">0</div>
+            <div class="clock-cell" title="P3 counter">0</div>
+          </div>
+        </div>
+        <div class="clock-card p2">
+          <div class="title">P2</div>
+          <div class="clock-vec">
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
+          </div>
+        </div>
+        <div class="clock-card p3">
+          <div class="title">P3</div>
+          <div class="clock-vec">
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
+            <div class="clock-cell">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:0.72rem;color:var(--muted);line-height:1.6">
+      <strong style="color:var(--text);display:block;margin-bottom:0.3rem">Rules</strong>
+      <b>Send:</b> increment own counter<br>
+      <b>Receive:</b> component-wise max, then increment own
+    </div>
+  </aside>
+
+  <!-- Space-time diagram -->
+  <main class="canvas-area">
+    <div class="canvas-header">
+      <div class="dot"></div>
+      Space-time diagram — time flows downward
+    </div>
+    <div id="diagram"></div>
+  </main>
+
+  <!-- Legend + log -->
+  <aside class="legend">
+    <div>
+      <h2>Legend</h2>
+    </div>
+    <div class="legend-items">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#6c63ff"></div> Process 1
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ff6584"></div> Process 2
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#43e97b"></div> Process 3
+      </div>
+      <div class="legend-item" style="margin-top:0.5rem">
+        <div class="legend-dot" style="background:#fbbf24"></div> Send event
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#38bdf8"></div> Receive event
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#a78bfa"></div> Internal event
+      </div>
+      <div class="legend-item">
+        <div class="legend-arrow"></div> Message
+      </div>
+    </div>
+
+    <div class="log-section">
+      <h2>Event Log</h2>
+      <div id="event-log"></div>
+    </div>
+  </aside>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
