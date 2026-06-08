@@ -1233,10 +1233,6 @@ h3 {
     min-height: 70px;
   }
 
-  .brand span:last-child {
-    display: none;
-  }
-
   .hero {
     padding: 43px 0 48px;
   }
