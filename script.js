@@ -17,7 +17,6 @@ const sendMessageButton = document.querySelector("#send-message");
 const resetButton = document.querySelector("#reset-simulation");
 const causalDemoButton = document.querySelector("#causal-demo");
 const concurrentDemoButton = document.querySelector("#concurrent-demo");
-const heroDemoButton = document.querySelector("#hero-demo");
 const networkStage = document.querySelector("#network-stage");
 const networkStatus = document.querySelector("#network-status");
 const eventCounter = document.querySelector("#event-counter");
@@ -56,7 +55,6 @@ function setBusy(nextBusy) {
   resetButton.disabled = nextBusy;
   causalDemoButton.disabled = nextBusy;
   concurrentDemoButton.disabled = nextBusy;
-  heroDemoButton.disabled = nextBusy;
 }
 
 function setSource(index) {
@@ -400,10 +398,6 @@ sendMessageButton.addEventListener("click", () => sendMessage());
 resetButton.addEventListener("click", reset);
 causalDemoButton.addEventListener("click", runCausalDemo);
 concurrentDemoButton.addEventListener("click", runConcurrentDemo);
-heroDemoButton.addEventListener("click", () => {
-  document.querySelector("#simulation").scrollIntoView({ behavior: "smooth" });
-  window.setTimeout(runCausalDemo, 400);
-});
 
 renderSelection();
 renderClocks();

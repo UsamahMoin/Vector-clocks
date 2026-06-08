@@ -67,37 +67,12 @@ a {
   margin: 0 auto;
 }
 
-.site-header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 82px;
-  border-bottom: 1px solid rgb(200 210 206 / 70%);
-}
-
-.header-link {
-  display: inline-flex;
-  align-items: center;
-}
-
-.header-link {
-  gap: 7px;
-  color: var(--ink-soft);
-  font-size: 0.84rem;
-  font-weight: 700;
-  transition: color var(--transition);
-}
-
-.header-link:hover {
-  color: var(--primary);
-}
-
 .hero {
   padding: 56px 0 62px;
 }
 
 .hero-copy {
-  max-width: 820px;
+  width: 100%;
 }
 
 .eyebrow {
@@ -117,7 +92,6 @@ p {
 }
 
 h1 {
-  max-width: 720px;
   margin-bottom: 19px;
   font-size: clamp(2.55rem, 5vw, 4.15rem);
   line-height: 1.02;
@@ -138,17 +112,11 @@ h3 {
 }
 
 .hero-text {
-  max-width: 680px;
-  margin-bottom: 25px;
+  width: 100%;
+  margin-bottom: 0;
   color: var(--ink-soft);
   font-size: 1rem;
   line-height: 1.7;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 .button {
@@ -195,12 +163,6 @@ h3 {
   background: var(--primary-dark);
 }
 
-.button-secondary {
-  border-color: var(--line-strong);
-  background: rgb(255 255 255 / 55%);
-}
-
-.button-secondary:hover:not(:disabled),
 .button-quiet:hover:not(:disabled) {
   border-color: var(--primary);
   background: var(--surface);
@@ -1194,10 +1156,6 @@ h3 {
 @media (max-width: 760px) {
   .page-shell {
     width: min(calc(100% - 24px), var(--content-width));
-  }
-
-  .site-header {
-    min-height: 70px;
   }
 
   .hero {
