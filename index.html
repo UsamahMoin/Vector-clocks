@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An interactive visualization of vector clocks, causal ordering, and concurrent events in a three-process distributed system.">
+  <title>Vector Clock Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Vector Clock Visualizer home">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>Distributed systems lab</span>
+      </a>
+      <a class="header-link" href="https://github.com/UsamahMoin/Vector-clocks" target="_blank" rel="noreferrer">
+        View source
+        <span aria-hidden="true">↗</span>
+      </a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Interactive systems model</p>
+          <h1>See causality move through a distributed system.</h1>
+          <p class="hero-text">
+            Vector clocks attach logical time to events. Send a message between three
+            independent processes and watch each timestamp record what that process
+            could causally know.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#simulation">Open simulation</a>
+            <button class="button button-secondary" id="hero-demo" type="button">Run causal example</button>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="mini-network">
+            <div class="mini-link mini-link-left"></div>
+            <div class="mini-link mini-link-right"></div>
+            <div class="mini-link mini-link-bottom"></div>
+            <div class="mini-node mini-node-one"><span>P1</span><strong>3,1,0</strong></div>
+            <div class="mini-node mini-node-two"><span>P2</span><strong>2,2,0</strong></div>
+            <div class="mini-node mini-node-three"><span>P3</span><strong>3,1,1</strong></div>
+            <div class="mini-packet"><span>msg</span><strong>[3,1,0]</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="simulation-section" id="simulation">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Live simulation</p>
+            <h2>Build an execution one event at a time.</h2>
+          </div>
+          <p>
+            Each process owns one component of the vector. Select a process for a
+            local event, or choose a route and send a timestamped message.
+          </p>
+        </div>
+
+        <div class="simulation-layout">
+          <aside class="control-panel card">
+            <div class="control-group">
+              <div class="control-label">
+                <span>Active process</span>
+                <span class="control-hint">local or sender</span>
+              </div>
+              <div class="segmented-control" id="source-control" aria-label="Select active process">
+                <button class="segment is-active" type="button" data-source="0" aria-pressed="true">P1</button>
+                <button class="segment" type="button" data-source="1" aria-pressed="false">P2</button>
+                <button class="segment" type="button" data-source="2" aria-pressed="false">P3</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="control-label">
+                <span>Message receiver</span>
+                <span class="control-hint">destination</span>
+              </div>
+              <div class="segmented-control" id="target-control" aria-label="Select receiving process">
+                <button class="segment" type="button" data-target="0" aria-pressed="false" disabled>P1</button>
+                <button class="segment is-active" type="button" data-target="1" aria-pressed="true">P2</button>
+                <button class="segment" type="button" data-target="2" aria-pressed="false">P3</button>
+              </div>
+            </div>
+
+            <div class="action-stack">
+              <button class="button button-primary button-wide" id="local-event" type="button">
+                Add local event
+              </button>
+              <button class="button button-accent button-wide" id="send-message" type="button">
+                Send P1 → P2
+              </button>
+              <button class="button button-quiet button-wide" id="reset-simulation" type="button">
+                Reset execution
+              </button>
+            </div>
+
+            <div class="preset-group">
+              <span class="control-label">Guided examples</span>
+              <button class="preset-button" id="causal-demo" type="button">
+                <span class="preset-icon preset-icon-causal" aria-hidden="true"></span>
+                <span><strong>Causal chain</strong><small>P1 influences P2, then P3</small></span>
+              </button>
+              <button class="preset-button" id="concurrent-demo" type="button">
+                <span class="preset-icon preset-icon-concurrent" aria-hidden="true"></span>
+                <span><strong>Concurrent events</strong><small>P1 and P2 act independently</small></span>
+              </button>
+            </div>
+          </aside>
+
+          <div class="network-card card">
+            <div class="network-toolbar">
+              <div>
+                <span class="status-dot"></span>
+                <span id="network-status">Ready for an event</span>
+              </div>
+              <span class="event-counter" id="event-counter">0 events</span>
+            </div>
+
+            <div class="network-stage" id="network-stage">
+              <svg class="network-links" viewBox="0 0 800 500" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                    <path d="M0,0 L8,4 L0,8 Z"></path>
+                  </marker>
+                </defs>
+                <line class="network-link" data-link="0-1" x1="400" y1="112" x2="205" y2="380"></line>
+                <line class="network-link" data-link="0-2" x1="400" y1="112" x2="595" y2="380"></line>
+                <line class="network-link" data-link="1-2" x1="205" y1="380" x2="595" y2="380"></line>
+              </svg>
+
+              <article class="process-node process-one is-source" data-process="0">
+                <span class="process-role">Process 1</span>
+                <div class="process-name">
+                  <strong>P1</strong>
+                  <span>System1.py · :1235</span>
+                </div>
+                <div class="vector-clock" aria-label="Process 1 vector clock">
+                  <span class="vector-bracket">[</span>
+                  <span class="clock-cell is-own" data-clock="0-0">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell" data-clock="0-1">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell" data-clock="0-2">0</span>
+                  <span class="vector-bracket">]</span>
+                </div>
+              </article>
+
+              <article class="process-node process-two is-target" data-process="1">
+                <span class="process-role">Process 2</span>
+                <div class="process-name">
+                  <strong>P2</strong>
+                  <span>System2.py · :1233</span>
+                </div>
+                <div class="vector-clock" aria-label="Process 2 vector clock">
+                  <span class="vector-bracket">[</span>
+                  <span class="clock-cell" data-clock="1-0">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell is-own" data-clock="1-1">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell" data-clock="1-2">0</span>
+                  <span class="vector-bracket">]</span>
+                </div>
+              </article>
+
+              <article class="process-node process-three" data-process="2">
+                <span class="process-role">Process 3</span>
+                <div class="process-name">
+                  <strong>P3</strong>
+                  <span>System3.py · :1234</span>
+                </div>
+                <div class="vector-clock" aria-label="Process 3 vector clock">
+                  <span class="vector-bracket">[</span>
+                  <span class="clock-cell" data-clock="2-0">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell" data-clock="2-1">0</span>
+                  <span class="clock-separator">,</span>
+                  <span class="clock-cell is-own" data-clock="2-2">0</span>
+                  <span class="vector-bracket">]</span>
+                </div>
+              </article>
+
+              <div class="message-packet" id="message-packet" aria-hidden="true">
+                <span>message</span>
+                <strong id="packet-clock">[0,0,0]</strong>
+              </div>
+            </div>
+
+            <div class="network-legend">
+              <span><i class="legend-source"></i> sender / active</span>
+              <span><i class="legend-target"></i> receiver</span>
+              <span><i class="legend-own"></i> owned component</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rules-section">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Update rules</p>
+            <h2>Every number has a precise meaning.</h2>
+          </div>
+          <p>
+            These are the standard vector-clock rules introduced for distributed
+            event ordering and used by the simulation above.
+          </p>
+        </div>
+
+        <div class="rule-grid">
+          <article class="rule-card card">
+            <span class="rule-symbol">+1</span>
+            <h3>Local event or send</h3>
+            <p>A process increments its own component before recording an event or transmitting a message.</p>
+            <code>V<sub>i</sub>[i] ← V<sub>i</sub>[i] + 1</code>
+          </article>
+          <article class="rule-card card">
+            <span class="rule-symbol">→</span>
+            <h3>Message timestamp</h3>
+            <p>The sender includes a copy of its entire vector, carrying causal knowledge across the network.</p>
+            <code>message.timestamp ← V<sub>i</sub></code>
+          </article>
+          <article class="rule-card card">
+            <span class="rule-symbol">max</span>
+            <h3>Receive event</h3>
+            <p>The receiver merges component-wise, then increments its own component to record the receive.</p>
+            <code>V<sub>j</sub> ← max(V<sub>j</sub>, T); V<sub>j</sub>[j]++</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="analysis-section">
+        <div class="event-panel card">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Execution history</p>
+              <h2>Events</h2>
+            </div>
+            <span class="panel-note">newest first</span>
+          </div>
+          <div class="event-log" id="event-log" role="log" aria-live="polite">
+            <div class="empty-state" id="empty-log">
+              <span class="empty-icon" aria-hidden="true">⌁</span>
+              <strong>No events yet</strong>
+              <p>Add a local event or send a message to begin.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-panel card">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Causality inspector</p>
+              <h2>Compare the latest events</h2>
+            </div>
+          </div>
+          <div class="comparison-content" id="comparison-content">
+            <div class="comparison-clocks">
+              <div>
+                <span>Event A</span>
+                <strong id="comparison-a">[—, —, —]</strong>
+              </div>
+              <span class="comparison-mark" id="comparison-mark">?</span>
+              <div>
+                <span>Event B</span>
+                <strong id="comparison-b">[—, —, —]</strong>
+              </div>
+            </div>
+            <div class="comparison-result is-waiting" id="comparison-result">
+              <span class="result-icon" aria-hidden="true"></span>
+              <div>
+                <strong>Add two events to compare them</strong>
+                <p>Vector clocks reveal causal order without requiring synchronized physical clocks.</p>
+              </div>
+            </div>
+            <div class="comparison-key">
+              <span><code>A &lt; B</code> means A happened before B</span>
+              <span><code>A ∥ B</code> means the events are concurrent</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="explanation-section">
+        <div class="explanation-copy">
+          <p class="eyebrow">How to read the model</p>
+          <h2>Logical time tracks knowledge, not elapsed seconds.</h2>
+          <p>
+            A vector component counts events known from one process. If every
+            component of A is less than or equal to B, and at least one is smaller,
+            then A could have influenced B. If neither vector is component-wise
+            less than the other, the events are concurrent: the system has no
+            causal evidence that either happened first.
+          </p>
+        </div>
+        <div class="example-comparison card">
+          <div class="example-row">
+            <code>[1, 0, 0]</code>
+            <span class="example-operator">&lt;</span>
+            <code>[1, 2, 0]</code>
+            <span class="example-label causal">causal</span>
+          </div>
+          <div class="example-divider"></div>
+          <div class="example-row">
+            <code>[2, 0, 0]</code>
+            <span class="example-operator">∥</span>
+            <code>[0, 1, 0]</code>
+            <span class="example-label concurrent">concurrent</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="references-section">
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow">Research foundation</p>
+            <h2>Primary sources</h2>
+          </div>
+          <p>
+            The visualization follows the established definition of logical clocks,
+            vector timestamps, happened-before ordering, and concurrency.
+          </p>
+        </div>
+        <div class="reference-grid">
+          <a class="reference-card card" href="https://cacm.acm.org/research/time-clocks-and-the-ordering-of-events-in-a-distributed-system/" target="_blank" rel="noreferrer">
+            <span>Lamport · 1978</span>
+            <strong>Time, Clocks, and the Ordering of Events in a Distributed System</strong>
+            <p>Defines the happened-before relation and logical clocks.</p>
+            <i aria-hidden="true">↗</i>
+          </a>
+          <a class="reference-card card" href="https://fileadmin.cs.lth.se/cs/Personal/Amr_Ergawy/dist-algos-papers/4.pdf" target="_blank" rel="noreferrer">
+            <span>Fidge · 1988</span>
+            <strong>Timestamps in Message-Passing Systems That Preserve the Partial Ordering</strong>
+            <p>Introduces vector timestamps that preserve causal ordering.</p>
+            <i aria-hidden="true">↗</i>
+          </a>
+          <a class="reference-card card" href="https://pages.cs.wisc.edu/~remzi/Classes/739/Fall2015/Papers/mattern89.pdf" target="_blank" rel="noreferrer">
+            <span>Mattern · 1989</span>
+            <strong>Virtual Time and Global States of Distributed Systems</strong>
+            <p>Develops vector time for reasoning about distributed state.</p>
+            <i aria-hidden="true">↗</i>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Vector Clock Visualizer</span>
+      <span>Built from the three-process Python implementation</span>
+    </footer>
+  </div>
+
+  <script src="script.js?v=1"></script>
+</body>
+</html>

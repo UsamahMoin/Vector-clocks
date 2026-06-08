@@ -1,36 +1,62 @@
-# Vector Clocks Project
+# Vector Clock Visualizer
 
-This project implements a distributed system simulation using vector clocks to maintain the partial ordering of events in a distributed system.
+This repository contains a three-process Python vector-clock demo and a static
+GitHub Pages visualization for exploring causal ordering in distributed systems.
 
-## Project Structure
+Live page: https://usamahmoin.github.io/Vector-clocks/
 
-The project consists of the following files:
-- `System1.py`
-- `System2.py`
-- `System3.py`
-- `Clock.py`
+## What the visualization shows
 
-### System1.py
+- Three distributed processes arranged as their own entities in a triangle.
+- Local events that increment only the active process component.
+- Message sends that carry the sender's full vector timestamp.
+- Receive events that merge with a component-wise maximum, then increment the receiver.
+- A causality inspector that compares the two latest events as causal, equal, or concurrent.
+- Guided examples for a causal chain and for independent concurrent events.
 
-This file contains the implementation for the first system node in the distributed system. It initializes the vector clock for the node, handles communication with other nodes, and processes incoming messages. The node can send and receive messages, updating its vector clock accordingly to maintain the correct order of events.
+## Research basis
 
-### System2.py
+The interactive page follows the standard happened-before and vector timestamp
+model from distributed systems literature:
 
-This file contains the implementation for the second system node in the distributed system. Similar to `System1.py`, it initializes the vector clock, handles communication, and processes messages. The node interacts with other nodes, updating its vector clock to reflect the partial ordering of events in the system.
+- Leslie Lamport, "Time, Clocks, and the Ordering of Events in a Distributed System" (1978).
+- Colin Fidge, "Timestamps in Message-Passing Systems That Preserve the Partial Ordering" (1988).
+- Friedemann Mattern, "Virtual Time and Global States of Distributed Systems" (1989).
 
-### System3.py
+## Project files
 
-This file contains the implementation for the third system node in the distributed system. It follows the same structure as `System1.py` and `System2.py`, initializing the vector clock, handling communication, and processing messages. The node ensures that its vector clock accurately reflects the ordering of events in the distributed system.
+- `index.html` - GitHub Pages entry point.
+- `style.css` - shared visual theme and responsive layout.
+- `script.js` - interactive vector-clock simulation.
+- `System1.py`, `System2.py`, `System3.py` - socket listeners for the Python demo.
+- `Clock.py` - message-send helper used by the Python demo.
 
-### Clock.py
+## Run the web page locally
 
-This file contains the implementation of the vector clock mechanism used by the system nodes. It provides the necessary functions for initializing, updating, and comparing vector clocks. The vector clock helps maintain the partial ordering of events in the distributed system by capturing the causal relationships between events.
+```bash
+python3 -m http.server 8000
+```
 
-## How to Run
+Then open:
 
-1. Ensure you have Python installed on your system.
-2. Run each system node in separate terminal windows or tabs.
-   ```bash
-   python System1.py
-   python System2.py
-   python System3.py
+```text
+http://127.0.0.1:8000/
+```
+
+## Run the Python socket demo
+
+Start each system in a separate terminal:
+
+```bash
+python3 System1.py
+python3 System2.py
+python3 System3.py
+```
+
+Then run `Clock.py` from another terminal to send timestamped messages between
+the processes.
+
+## GitHub Pages
+
+This repository is designed to be published from the `main` branch at the
+repository root.
