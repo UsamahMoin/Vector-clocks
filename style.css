@@ -70,48 +70,15 @@ a {
 .site-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   min-height: 82px;
   border-bottom: 1px solid rgb(200 210 206 / 70%);
 }
 
-.brand,
 .header-link {
   display: inline-flex;
   align-items: center;
 }
-
-.brand {
-  gap: 12px;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.brand-mark {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, 6px);
-  align-items: end;
-  gap: 3px;
-  width: 29px;
-  height: 29px;
-  padding: 6px;
-  border-radius: 8px;
-  background: var(--primary);
-}
-
-.brand-mark span {
-  display: block;
-  width: 4px;
-  border-radius: 3px;
-  background: #fff;
-}
-
-.brand-mark span:nth-child(1) { height: 7px; opacity: 0.65; }
-.brand-mark span:nth-child(2) { height: 15px; }
-.brand-mark span:nth-child(3) { height: 11px; opacity: 0.8; }
 
 .header-link {
   gap: 7px;
