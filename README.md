@@ -3,7 +3,7 @@
 This repository contains a three-process Python vector-clock demo and a static
 GitHub Pages visualization for exploring causal ordering in distributed systems.
 
-Live page: https://usamahmoin.github.io/Vector-clocks/
+Live page: https://usamahmoin.github.io/Vector-Clocks/
 
 ## What the visualization shows
 
